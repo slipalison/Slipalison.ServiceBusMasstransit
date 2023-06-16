@@ -30,7 +30,7 @@ namespace C.Slipalison.ServiceBusMasstransit
 
                     var entry = Assembly.GetEntryAssembly();
 
-                  //  x.AddConsumers(entry);
+                    //x.AddConsumers(entry);
                     x.AddSagaStateMachines(entry);
                     x.AddSagas(entry);
 
@@ -38,13 +38,18 @@ namespace C.Slipalison.ServiceBusMasstransit
                     x.UsingAzureServiceBus((context, cfg) =>
                     {
                         cfg.Host(connectionString, c => c.TransportType = ServiceBusTransportType.AmqpWebSockets);
-                        // cfg.Host(new Uri("sb://slipalison.servicebus.windows.net"), new ServiceBusClient(connectionString), new ServiceBusAdministrationClient(connectionString));
-
 
                         cfg.ConfigureEndpoints(context);
 
 
-                        cfg.Message<Hello>(x => x.SetEntityName("topico-novo"));
+                        cfg.ReceiveEndpoint("fila-nova", x =>
+                        {
+                            x.Subscribe("topico-novo", "subscriptionName");
+                            x.Consumer<HelloConsulmerB2>();
+
+                        });
+
+
 
                     });
 
@@ -68,9 +73,9 @@ namespace C.Slipalison.ServiceBusMasstransit
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                Console.WriteLine("ok");
+                // Console.WriteLine("ok");
 
-                await _bus.Publish(new Hello(), stoppingToken);
+              //  await _bus.Publish(new Hello() {  MyProperty = "Iaae B"}, stoppingToken);
 
            
                 await Task.Delay(1000, stoppingToken);
@@ -79,19 +84,24 @@ namespace C.Slipalison.ServiceBusMasstransit
         }
     }
 
-    public class Hello
-    {
 
-        public string MyProperty { get; set; } = "Iae";
-    }
 
-    public class HelloConsulmerA : IConsumer<Hello>
+    public class HelloConsulmerB : IConsumer<Hello>
     {
         public Task Consume(ConsumeContext<Hello> context)
         {
-            Console.WriteLine(context.Message.MyProperty + "HelloConsulmerA");
+            Console.WriteLine(context.Message.MyProperty+ " HelloConsulmerB");
             return Task.CompletedTask;
         }
     }
 
+
+    public class HelloConsulmerB2 : IConsumer<Hello>
+    {
+        public Task Consume(ConsumeContext<Hello> context)
+        {
+            Console.WriteLine(context.Message.MyProperty + " HelloConsulmerB2");
+            return Task.CompletedTask;
+        }
+    }
 }
