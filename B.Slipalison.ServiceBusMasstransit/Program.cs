@@ -1,7 +1,7 @@
 using Azure.Messaging.ServiceBus;
-//using C.Slipalison.ServiceBusMasstransit;
 using MassTransit;
 using MassTransit.Serialization;
+using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 
 namespace B.Slipalison.ServiceBusMasstransit
@@ -22,12 +22,34 @@ namespace B.Slipalison.ServiceBusMasstransit
                 var connectionString = "Endpoint=sb://testebus.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dM4zOESViqVH6k/mPvp8zWtGR8tGaK9BW+ASbMrRJCw=";
                 var queueName = "submitorder-queue";
 
+                var connectionStringPost = "User ID=bitstamp;Password=HZJqcT4It3liQC4O1H1p3cGUwhlX453U;Host=dpg-chn0kvm4dad21k1d9vn0-a.oregon-postgres.render.com;Port=5432;Database=bitstamp;Pooling=true;";
+
+
+                services.AddDbContext<OutContext>(x =>
+                {
+                   
+                    x.UseNpgsql(connectionStringPost, options =>
+                    {
+                        options.MigrationsAssembly(Assembly.GetExecutingAssembly().GetName().Name);
+                        options.MigrationsHistoryTable($"__{nameof(OutContext)}");
+
+                        options.EnableRetryOnFailure(5);
+                        options.MinBatchSize(1);
+                    });
+                });
 
                 services.AddMassTransit(x =>
                 {
 
-                    x.SetKebabCaseEndpointNameFormatter();
+                    x.AddEntityFrameworkOutbox<OutContext>(o =>
+                    {
+                        o.QueryDelay = TimeSpan.FromSeconds(1);
+                        o.UsePostgres();
+                        o.UseBusOutbox();
 
+                    });
+
+                    x.SetKebabCaseEndpointNameFormatter();
                     x.SetInMemorySagaRepositoryProvider();
 
                     var entry = Assembly.GetEntryAssembly();
@@ -36,15 +58,14 @@ namespace B.Slipalison.ServiceBusMasstransit
                     x.AddSagaStateMachines(entry);
                     x.AddSagas(entry);
 
-
                     x.UsingAzureServiceBus((context, cfg) =>
                     {
                         cfg.Host(connectionString, c => c.TransportType = ServiceBusTransportType.AmqpWebSockets);
 
                         cfg.ConfigureEndpoints(context);
+                        cfg.AutoStart = true;
 
                     });
-
 
                 });
 
@@ -85,28 +106,28 @@ namespace B.Slipalison.ServiceBusMasstransit
             try
             {
                 Console.WriteLine(context.Message.MyProperty + " HelloConsulmerB2");
-                throw new Exception("quebrei");
-
+              //   throw new Exception("quebrei");
 
                 await context.ConsumeCompleted;
                 await context.NotifyConsumed(TimeSpan.Zero, nameof(HelloConsulmerB2));
             }
             catch (Exception ex)
             {
-           
+
                 //await context.NotifyFaulted(context, TimeSpan.Zero, nameof(HelloConsulmerB2), ex);
                 throw;
             }
-          
+
         }
     }
 
     public class SubsDefination : ConsumerDefinition<HelloConsulmerB2>
     {
+        private readonly IServiceProvider _serviceProvider;
 
-        public SubsDefination()
+        public SubsDefination(IServiceProvider serviceProvider )
         {
-
+            _serviceProvider = serviceProvider;
             EndpointName = "EndPointName-1";
             ConcurrentMessageLimit = 2000;
 
@@ -132,7 +153,7 @@ namespace B.Slipalison.ServiceBusMasstransit
 
             // TODO: Retry 
             endpointConfigurator.UseMessageRetry(retry => retry.Incremental(3, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3)));
-           
+
             // TODO Circuit Break 
             endpointConfigurator.UseCircuitBreaker(cb =>
             {
@@ -149,7 +170,25 @@ namespace B.Slipalison.ServiceBusMasstransit
                 .SetRestartTimeout(m: 1));
 
             // TODO Outbox EF
+            endpointConfigurator.UseEntityFrameworkOutbox<OutContext>(_serviceProvider);
 
+        }
+    }
+
+
+    public class OutContext : DbContext
+    {
+        public OutContext(DbContextOptions<OutContext> options) :base(options)
+        {
+            
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.AddInboxStateEntity();
+            modelBuilder.AddOutboxMessageEntity();
+            modelBuilder.AddOutboxStateEntity();
         }
     }
 }

@@ -2,6 +2,8 @@ using Azure.Messaging.ServiceBus;
 using MassTransit;
 using MassTransit.Configuration;
 using MassTransit.Topology;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 
 namespace C.Slipalison.ServiceBusMasstransit
@@ -22,10 +24,32 @@ namespace C.Slipalison.ServiceBusMasstransit
                 var connectionString = "Endpoint=sb://testebus.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dM4zOESViqVH6k/mPvp8zWtGR8tGaK9BW+ASbMrRJCw=";
                 var queueName = "submitorder-queue";
 
+                var connectionStringPost = "User ID=bitstamp;Password=HZJqcT4It3liQC4O1H1p3cGUwhlX453U;Host=dpg-chn0kvm4dad21k1d9vn0-a.oregon-postgres.render.com;Port=5432;Database=bitstamp;Pooling=true;";
+
+
+                services.AddDbContext<OutContext>(x =>
+                {
+
+                    x.UseNpgsql(connectionStringPost, options =>
+                    {
+                        options.MigrationsAssembly(Assembly.GetExecutingAssembly().GetName().Name);
+                        options.MigrationsHistoryTable($"__{nameof(OutContext)}");
+
+                        options.EnableRetryOnFailure(5);
+                        options.MinBatchSize(1);
+                    });
+                });
 
                 services.AddMassTransit(x =>
                 {
 
+                    x.AddEntityFrameworkOutbox<OutContext>(o =>
+                    {
+                        o.QueryDelay = TimeSpan.FromSeconds(1);
+                        o.UsePostgres();
+                        o.UseBusOutbox();
+
+                    });
 
                     x.SetKebabCaseEndpointNameFormatter();
 
@@ -128,6 +152,23 @@ namespace C.Slipalison.ServiceBusMasstransit
         {
             Console.WriteLine(context.Message.MyProperty + "HelloConsulmerA");
             return Task.CompletedTask;
+        }
+    }
+
+
+    public class OutContext : DbContext
+    {
+        public OutContext(DbContextOptions<OutContext> options) : base(options)
+        {
+
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.AddInboxStateEntity();
+            modelBuilder.AddOutboxMessageEntity();
+            modelBuilder.AddOutboxStateEntity();
         }
     }
 
