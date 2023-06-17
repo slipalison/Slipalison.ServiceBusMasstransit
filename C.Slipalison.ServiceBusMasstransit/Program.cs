@@ -1,5 +1,7 @@
 using Azure.Messaging.ServiceBus;
 using MassTransit;
+using MassTransit.Configuration;
+using MassTransit.Topology;
 using System.Reflection;
 
 namespace C.Slipalison.ServiceBusMasstransit
@@ -20,6 +22,7 @@ namespace C.Slipalison.ServiceBusMasstransit
                 var connectionString = "Endpoint=sb://testebus.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dM4zOESViqVH6k/mPvp8zWtGR8tGaK9BW+ASbMrRJCw=";
                 var queueName = "submitorder-queue";
 
+
                 services.AddMassTransit(x =>
                 {
 
@@ -30,7 +33,7 @@ namespace C.Slipalison.ServiceBusMasstransit
 
                     var entry = Assembly.GetEntryAssembly();
 
-                  //  x.AddConsumers(entry);
+                    //x.AddConsumers(entry);
                     x.AddSagaStateMachines(entry);
                     x.AddSagas(entry);
 
@@ -38,14 +41,40 @@ namespace C.Slipalison.ServiceBusMasstransit
                     x.UsingAzureServiceBus((context, cfg) =>
                     {
                         cfg.Host(connectionString, c => c.TransportType = ServiceBusTransportType.AmqpWebSockets);
-                        // cfg.Host(new Uri("sb://slipalison.servicebus.windows.net"), new ServiceBusClient(connectionString), new ServiceBusAdministrationClient(connectionString));
+
+                        cfg.Message<Hello>(x =>
+                        {
+                            x.SetEntityName("topico-novo");
+
+                        });
+
+                        // TODO Partition
+                        cfg.Send<Hello>(x =>
+                        {
+                            x.UsePartitionKeyFormatter(p => p.Message.MyProperty);
+                            //   x.UseCorrelationId()
+                            x.UseSerializer("application/json");
 
 
-                        cfg.ConfigureEndpoints(context);
+                        });
 
 
-                        cfg.Message<Hello>(x => x.SetEntityName("topico-novo"));
+                        // TODO Correlation
+                        cfg.Publish<Hello>(p =>
+                        {
+                           p.UserMetadata = "MetaDadosSigiloso";
+                            //p.Add(new MessagePublishTopology<Hello>(new PublishTopology(). ));
 
+                        });
+
+                        //cfg.ReceiveEndpoint("fila-a", x =>
+                        //{
+                        //    x.ConfigureConsumeTopology = false;
+                        //    x.Subscribe("topico-novo", "subscriptionNameB");
+                        //    x.Consumer<HelloConsulmerA>();
+                        //});
+
+                        // cfg.ConfigureEndpoints(context);
                     });
 
                 });
@@ -66,13 +95,21 @@ namespace C.Slipalison.ServiceBusMasstransit
         }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            var i = 0;
             while (!stoppingToken.IsCancellationRequested)
             {
                 Console.WriteLine("ok");
 
-                await _bus.Publish(new Hello(), stoppingToken);
+                await _bus.Publish(new Hello() { MyProperty = $" IAE {i++}" }, ctx=> {
+                
+                    ctx.ContentType = new System.Net.Mime.ContentType("application/json");
+                    ctx.CorrelationId = Guid.NewGuid();
+                    //ctx.SetRoutingKey("rota");
+                    
 
-           
+                }, stoppingToken);
+
+
                 await Task.Delay(1000, stoppingToken);
 
             }
