@@ -1,6 +1,7 @@
 using Azure.Messaging.ServiceBus;
 //using C.Slipalison.ServiceBusMasstransit;
 using MassTransit;
+using MassTransit.Serialization;
 using System.Reflection;
 
 namespace B.Slipalison.ServiceBusMasstransit
@@ -22,11 +23,8 @@ namespace B.Slipalison.ServiceBusMasstransit
                 var queueName = "submitorder-queue";
 
 
-                //  services.AddScoped(typeof(IConsumer<>));
-
                 services.AddMassTransit(x =>
                 {
-
 
                     x.SetKebabCaseEndpointNameFormatter();
 
@@ -45,20 +43,8 @@ namespace B.Slipalison.ServiceBusMasstransit
 
                         cfg.ConfigureEndpoints(context);
 
-                        //cfg.ReceiveEndpoint("fila-b2", x =>
-                        //{
-                        //    x.ConfigureConsumeTopology = false;
-
-                        //    x.UseRawJsonDeserializer();
-                        //    x.UseJsonSerializer();
-                        //    x.Subscribe("topico-novo", "subscriptionName-fila-b2");
-
-
-                        //});
-
                     });
 
-                    // x.AddConsumer<HelloConsulmerB2, SubsDefination>();
 
                 });
 
@@ -94,10 +80,24 @@ namespace B.Slipalison.ServiceBusMasstransit
 
     public class HelloConsulmerB2 : IConsumer<Hello>
     {
-        public Task Consume(ConsumeContext<Hello> context)
+        public async Task Consume(ConsumeContext<Hello> context)
         {
-            Console.WriteLine(context.Message.MyProperty + " HelloConsulmerB2");
-            return Task.CompletedTask;
+            try
+            {
+                Console.WriteLine(context.Message.MyProperty + " HelloConsulmerB2");
+                throw new Exception("quebrei");
+
+
+                await context.ConsumeCompleted;
+                await context.NotifyConsumed(TimeSpan.Zero, nameof(HelloConsulmerB2));
+            }
+            catch (Exception ex)
+            {
+           
+                //await context.NotifyFaulted(context, TimeSpan.Zero, nameof(HelloConsulmerB2), ex);
+                throw;
+            }
+          
         }
     }
 
@@ -124,17 +124,31 @@ namespace B.Slipalison.ServiceBusMasstransit
 
             }
 
-            endpointConfigurator.UseRawJsonDeserializer(MassTransit.Serialization.RawSerializerOptions.All);
-            endpointConfigurator.UseRawJsonSerializer(MassTransit.Serialization.RawSerializerOptions.All);
+            endpointConfigurator.UseRawJsonDeserializer(RawSerializerOptions.All);
+            endpointConfigurator.UseRawJsonSerializer(RawSerializerOptions.All);
 
             endpointConfigurator.PrefetchCount = 2000;
             endpointConfigurator.ConfigureConsumeTopology = false;
 
             // TODO: Retry 
             endpointConfigurator.UseMessageRetry(retry => retry.Incremental(3, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3)));
+           
             // TODO Circuit Break 
+            endpointConfigurator.UseCircuitBreaker(cb =>
+            {
+                cb.TrackingPeriod = TimeSpan.FromMinutes(5);
+                cb.TripThreshold = 15;
+                cb.ActiveThreshold = 10;
+                cb.ResetInterval = TimeSpan.FromMinutes(5);
+            });
+
+            // KillSwitch 
+            endpointConfigurator.UseKillSwitch(options => options
+                .SetActivationThreshold(11)
+                .SetTripThreshold(0.15)
+                .SetRestartTimeout(m: 1));
+
             // TODO Outbox EF
-            // DLQ
 
         }
     }
