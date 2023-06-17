@@ -69,7 +69,7 @@ namespace C.Slipalison.ServiceBusMasstransit
                         cfg.Message<Hello>(x =>
                         {
                             x.SetEntityName("topico-novo");
-
+                           
                         });
 
                         // TODO Partition
@@ -78,7 +78,7 @@ namespace C.Slipalison.ServiceBusMasstransit
                             x.UsePartitionKeyFormatter(p => p.Message.MyProperty);
                             //   x.UseCorrelationId()
                             x.UseSerializer("application/json");
-
+                            
 
                         });
 
@@ -88,7 +88,7 @@ namespace C.Slipalison.ServiceBusMasstransit
                         {
                            p.UserMetadata = "MetaDadosSigiloso";
                             //p.Add(new MessagePublishTopology<Hello>(new PublishTopology(). ));
-
+                            
                         });
 
                         //cfg.ReceiveEndpoint("fila-a", x =>
