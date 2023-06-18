@@ -16,17 +16,20 @@ namespace B.Slipalison.ServiceBusMasstransit
 
                 x.AddEntityFrameworkOutbox<OutContext>(o =>
                 {
-                    o.QueryDelay = TimeSpan.FromSeconds(1);
+                    //o.QueryDelay = TimeSpan.FromSeconds(1);
+
+                    //o.DuplicateDetectionWindow = TimeSpan.FromSeconds(30);
                     o.UsePostgres();
                     o.UseBusOutbox();
-
+                    
                 });
+
 
                 x.SetKebabCaseEndpointNameFormatter();
                 x.SetInMemorySagaRepositoryProvider();
 
                 var entry = Assembly.GetEntryAssembly();
-
+           
                 x.AddConsumers(entry);
                 x.AddSagaStateMachines(entry);
                 x.AddSagas(entry);
@@ -46,4 +49,8 @@ namespace B.Slipalison.ServiceBusMasstransit
             return services;
         }
     }
+
+
+
+
 }

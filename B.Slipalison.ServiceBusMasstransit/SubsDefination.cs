@@ -24,12 +24,11 @@ namespace B.Slipalison.ServiceBusMasstransit
                     x.MaxDeliveryCount = 2000;
 
                 });
-
             }
 
+            endpointConfigurator.UseConsumeFilter(typeof(GenericMiddleware<>), _serviceProvider);
             endpointConfigurator.UseRawJsonDeserializer(RawSerializerOptions.All);
             endpointConfigurator.UseRawJsonSerializer(RawSerializerOptions.All);
-
             endpointConfigurator.PrefetchCount = 2000;
             endpointConfigurator.ConfigureConsumeTopology = false;
 
@@ -56,4 +55,42 @@ namespace B.Slipalison.ServiceBusMasstransit
 
         }
     }
+
+
+
+    public class GenericMiddleware<T> : IFilter<ConsumeContext<T>> where T : class
+    {
+        public async Task Send(ConsumeContext<T> context, IPipe<ConsumeContext<T>> next)
+        {
+            try
+            {
+
+
+
+                // Executar código antes de processar a mensagem
+                using var _ = Serilog.Context.LogContext.PushProperty("CorrelationID", context.CorrelationId.ToString());
+
+
+
+                // Chamar o próximo middleware ou consumidor
+                await next.Send(context);
+
+                // Executar código depois de processar a mensagem
+            }
+            catch (Exception ex)
+            {
+                // Lidar com exceções, se necessário
+                throw;
+            }
+        }
+
+        public void Probe(ProbeContext context)
+        {
+            // Implementação vazia, não é necessário neste exemplo
+            context.CreateFilterScope("transaction");
+        }
+
+
+    }
+
 }

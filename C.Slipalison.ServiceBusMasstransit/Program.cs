@@ -1,8 +1,5 @@
 using Azure.Messaging.ServiceBus;
 using MassTransit;
-using MassTransit.Configuration;
-using MassTransit.Topology;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 
@@ -45,7 +42,8 @@ namespace C.Slipalison.ServiceBusMasstransit
 
                     x.AddEntityFrameworkOutbox<OutContext>(o =>
                     {
-                        o.QueryDelay = TimeSpan.FromSeconds(1);
+                        //o.QueryDelay = TimeSpan.FromSeconds(1);
+                        //o.DuplicateDetectionWindow = TimeSpan.FromSeconds(30);
                         o.UsePostgres();
                         o.UseBusOutbox();
 
@@ -69,7 +67,7 @@ namespace C.Slipalison.ServiceBusMasstransit
                         cfg.Message<Hello>(x =>
                         {
                             x.SetEntityName("topico-novo");
-                           
+
                         });
 
                         // TODO Partition
@@ -78,7 +76,7 @@ namespace C.Slipalison.ServiceBusMasstransit
                             x.UsePartitionKeyFormatter(p => p.Message.MyProperty);
                             //   x.UseCorrelationId()
                             x.UseSerializer("application/json");
-                            
+
 
                         });
 
@@ -86,19 +84,12 @@ namespace C.Slipalison.ServiceBusMasstransit
                         // TODO Correlation
                         cfg.Publish<Hello>(p =>
                         {
-                           p.UserMetadata = "MetaDadosSigiloso";
-                            //p.Add(new MessagePublishTopology<Hello>(new PublishTopology(). ));
-                            
+                            p.UserMetadata = "MetaDadosSigiloso";
+
                         });
 
-                        //cfg.ReceiveEndpoint("fila-a", x =>
-                        //{
-                        //    x.ConfigureConsumeTopology = false;
-                        //    x.Subscribe("topico-novo", "subscriptionNameB");
-                        //    x.Consumer<HelloConsulmerA>();
-                        //});
+                        cfg.ConfigureEndpoints(context);
 
-                        // cfg.ConfigureEndpoints(context);
                     });
 
                 });
@@ -109,27 +100,51 @@ namespace C.Slipalison.ServiceBusMasstransit
 
     }
 
-    public class Worker : BackgroundService
+    public class Worker : IHostedService
     {
+        private readonly IServiceProvider _serviceProvider;
         private readonly IBus _bus;
 
-        public Worker(IBus bus)
+        public Worker(IBus bus, IServiceProvider serviceProvider)
         {
+            _serviceProvider = serviceProvider;
             _bus = bus;
         }
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+
+        public Task StartAsync(CancellationToken cancellationToken)
         {
+            return ExecuteAsync(cancellationToken);
+        }
+
+        protected  async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            using var scoped = _serviceProvider.CreateScope();
             var i = 0;
             while (!stoppingToken.IsCancellationRequested)
             {
                 Console.WriteLine("ok");
 
-                await _bus.Publish(new Hello() { MyProperty = $" IAE {i++}" }, ctx=> {
-                
+
+                var p = scoped.ServiceProvider.GetRequiredService<IPublishEndpoint>();
+                var b = scoped.ServiceProvider.GetRequiredService<IBus>();
+
+
+                await p.Publish<Hello>(new { MyProperty = $" IAE {i++}" }, ctx =>
+                {
+
                     ctx.ContentType = new System.Net.Mime.ContentType("application/json");
                     ctx.CorrelationId = Guid.NewGuid();
                     //ctx.SetRoutingKey("rota");
-                    
+
+                }, stoppingToken);
+
+                await b.Publish<Hello>(new { MyProperty = $" IAE {i++}" }, ctx =>
+                {
+
+                    ctx.ContentType = new System.Net.Mime.ContentType("application/json");
+                    ctx.CorrelationId = Guid.NewGuid();
+                    //ctx.SetRoutingKey("rota");
+
 
                 }, stoppingToken);
 
@@ -137,6 +152,12 @@ namespace C.Slipalison.ServiceBusMasstransit
                 await Task.Delay(1000, stoppingToken);
 
             }
+        }
+
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
         }
     }
 

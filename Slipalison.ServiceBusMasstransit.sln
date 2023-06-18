@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "C.Slipalison.ServiceBusMass
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "B.Slipalison.ServiceBusMasstransit", "B.Slipalison.ServiceBusMasstransit\B.Slipalison.ServiceBusMasstransit.csproj", "{65803F47-1DF5-4073-8EA8-F5AB7A07F7FA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebApi.Slipalison.ServiceBusMasstransit", "WebApi.Slipalison.ServiceBusMasstransit\WebApi.Slipalison.ServiceBusMasstransit.csproj", "{44F94E09-27DA-445C-94F7-012D8872AAC9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{65803F47-1DF5-4073-8EA8-F5AB7A07F7FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{65803F47-1DF5-4073-8EA8-F5AB7A07F7FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{65803F47-1DF5-4073-8EA8-F5AB7A07F7FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{44F94E09-27DA-445C-94F7-012D8872AAC9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44F94E09-27DA-445C-94F7-012D8872AAC9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44F94E09-27DA-445C-94F7-012D8872AAC9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44F94E09-27DA-445C-94F7-012D8872AAC9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

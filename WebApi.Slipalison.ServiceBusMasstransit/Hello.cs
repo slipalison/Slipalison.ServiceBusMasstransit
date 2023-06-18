@@ -1,4 +1,4 @@
-﻿namespace C.Slipalison.ServiceBusMasstransit
+﻿namespace WebApi.Slipalison.ServiceBusMasstransit
 {
     public class Hello
     {

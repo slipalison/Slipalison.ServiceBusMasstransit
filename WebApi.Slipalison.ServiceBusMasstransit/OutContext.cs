@@ -1,7 +1,7 @@
 ﻿using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
-namespace B.Slipalison.ServiceBusMasstransit
+namespace WebApi.Slipalison.ServiceBusMasstransit
 {
     public class OutContext : DbContext
     {

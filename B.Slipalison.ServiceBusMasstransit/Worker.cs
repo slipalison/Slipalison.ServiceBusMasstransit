@@ -5,10 +5,12 @@ namespace B.Slipalison.ServiceBusMasstransit
     public class Worker : BackgroundService
     {
         private readonly IBus _bus;
+        private readonly ILogger<Worker> _logger;
 
-        public Worker(IBus bus)
+        public Worker(IBus bus, ILogger<Worker> logger)
         {
             _bus = bus;
+            _logger = logger;
         }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
